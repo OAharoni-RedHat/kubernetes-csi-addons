@@ -111,13 +111,13 @@ var _ = Describe("PromoteVolumeReplication", func() {
 				DeleteNamespace(cleanupCtx, cDR2, ns2)
 			})
 
-			By("L1-PROM-001: Promote secondary VR on DR2 by changing replicationState to Primary (force=true)")
+			By("L1-PROM-001: Disabling replication on DR1 primary (delete VR to release the primary role at the array level)")
+			DeleteVolumeReplicationWithCleanup(ctx, cDR1, vrDR1)
+			vrDR1 = nil
+
+			By("L1-PROM-001: Promote secondary VR on DR2 by changing replicationState to Primary")
 			err := cDR2.Get(ctx, client.ObjectKeyFromObject(vrDR2), vrDR2)
 			Expect(err).NotTo(HaveOccurred())
-			if vrDR2.Annotations == nil {
-				vrDR2.Annotations = map[string]string{}
-			}
-			vrDR2.Annotations["replication.storage.openshift.io/force-promote"] = "true"
 			vrDR2.Spec.ReplicationState = replicationv1alpha1.Primary
 			err = cDR2.Update(ctx, vrDR2)
 			Expect(err).NotTo(HaveOccurred(), "Failed to update VR replicationState to Primary")
