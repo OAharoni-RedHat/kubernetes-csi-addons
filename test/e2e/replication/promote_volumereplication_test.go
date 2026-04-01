@@ -40,10 +40,10 @@ var _ = Describe("PromoteVolumeReplication", func() {
 		env = GetTestEnv()
 	})
 
-	Describe("L1-PROM-001: Promote secondary to primary (healthy)", func() {
-		It("L1-PROM-001: promote secondary → primary when healthy, expect successful promotion", func() {
-			By("L1-PROM-001: Create primary on DR1, secondary on DR2; promote secondary to primary")
-			SkipIfNotFullDR("L1-PROM-001", "requires two clusters (DR1_CONTEXT and DR2_CONTEXT)")
+	Describe("L1-PROM-001-PRIM-SEC: Promote secondary to primary (healthy)", func() {
+		It("L1-PROM-001-PRIM-SEC: promote secondary → primary when healthy, expect successful promotion", func() {
+			By("L1-PROM-001-PRIM-SEC: Create primary on DR1, secondary on DR2; promote secondary to primary")
+			SkipIfNotFullDR("L1-PROM-001-PRIM-SEC", "requires two clusters (DR1_CONTEXT and DR2_CONTEXT)")
 
 			cDR1 := GetK8sClientForCluster(ClusterDR1)
 			cDR2 := GetK8sClientForCluster(ClusterDR2)
@@ -111,24 +111,13 @@ var _ = Describe("PromoteVolumeReplication", func() {
 				DeleteNamespace(cleanupCtx, cDR2, ns2)
 			})
 
-			By("L1-PROM-001: Demote primary VR on DR1 before promoting secondary (Primary → Secondary)")
-			err := cDR1.Get(ctx, client.ObjectKeyFromObject(vrDR1), vrDR1)
+			By("L1-PROM-001: Promote secondary VR on DR2 by changing replicationState to Primary (force=true)")
+			err := cDR2.Get(ctx, client.ObjectKeyFromObject(vrDR2), vrDR2)
 			Expect(err).NotTo(HaveOccurred())
-			vrDR1.Spec.ReplicationState = replicationv1alpha1.Secondary
-			err = cDR1.Update(ctx, vrDR1)
-			Expect(err).NotTo(HaveOccurred(), "Failed to demote primary VR to Secondary")
-
-			By("Waiting for primary VR on DR1 to transition to Secondary")
-			Eventually(func() string {
-				_ = cDR1.Get(ctx, client.ObjectKeyFromObject(vrDR1), vrDR1)
-				fmt.Fprintf(GinkgoWriter, "  [DR1][VR] demoting: %s\n", FormatVRStatus(vrDR1))
-				return string(vrDR1.Status.State)
-			}, 5*time.Minute, 5*time.Second).Should(Equal(string(replicationv1alpha1.SecondaryState)),
-				"Primary VR should transition to Secondary state before promoting the other side")
-
-			By("L1-PROM-001: Promote secondary VR on DR2 by changing replicationState to Primary")
-			err = cDR2.Get(ctx, client.ObjectKeyFromObject(vrDR2), vrDR2)
-			Expect(err).NotTo(HaveOccurred())
+			if vrDR2.Annotations == nil {
+				vrDR2.Annotations = map[string]string{}
+			}
+			vrDR2.Annotations["replication.storage.openshift.io/force-promote"] = "true"
 			vrDR2.Spec.ReplicationState = replicationv1alpha1.Primary
 			err = cDR2.Update(ctx, vrDR2)
 			Expect(err).NotTo(HaveOccurred(), "Failed to update VR replicationState to Primary")

@@ -52,10 +52,13 @@ const (
 	volumeReplicationClass           = "VolumeReplicationClass"
 	volumeReplication                = "VolumeReplication"
 	defaultScheduleTime              = time.Hour
+
+	// forcePromoteAnnotation, when set to "true" on a VolumeReplication object,
+	// causes the controller to pass force=true to the CSI driver's PromoteVolume RPC.
+	forcePromoteAnnotation = "replication.storage.openshift.io/force-promote"
 )
 
 var (
-	volumePromotionKnownErrors    = []codes.Code{codes.FailedPrecondition}
 	disableReplicationKnownErrors = []codes.Code{codes.NotFound}
 	enableReplicationKnownErrors  = []codes.Code{codes.FailedPrecondition}
 	getReplicationInfoKnownErrors = []codes.Code{codes.NotFound}
@@ -323,6 +326,9 @@ func (r *VolumeReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		// replication enabled and promoted only once, not always during
 		// each reconciliation.
 		if instance.Status.State != replicationv1alpha1.PrimaryState {
+			if val, ok := instance.Annotations[forcePromoteAnnotation]; ok && val == "true" {
+				vr.force = true
+			}
 			// enable replication only if its not primary
 			if err = r.enableReplication(vr); err != nil {
 				logger.Error(err, "failed to enable replication")
@@ -622,33 +628,20 @@ type volumeReplicationInstance struct {
 }
 
 // markVolumeAsPrimary defines and runs a set of tasks required to mark a volume as primary.
+// When vr.force is true (e.g. via the replication.storage.openshift.io/force-promote annotation),
+// the PromoteVolume RPC is called with force=true.
 func (r *VolumeReplicationReconciler) markVolumeAsPrimary(vr *volumeReplicationInstance) error {
 	volumeReplication := replication.Replication{
 		Params: vr.commonRequestParameters,
+		Force:  vr.force,
 	}
 
 	resp := volumeReplication.Promote()
 	if resp.Error != nil {
-		isKnownError := resp.HasKnownGRPCError(volumePromotionKnownErrors)
-		if !isKnownError {
-			if resp.Error != nil {
-				vr.logger.Error(resp.Error, "failed to promote volume")
-				setFailedPromotionCondition(&vr.instance.Status.Conditions, vr.instance.Generation, vr.instance.Spec.DataSource.Kind, "failed to promote volume", resp.Error.Error())
+		vr.logger.Error(resp.Error, "failed to promote volume", "force", vr.force)
+		setFailedPromotionCondition(&vr.instance.Status.Conditions, vr.instance.Generation, vr.instance.Spec.DataSource.Kind, "failed to promote volume", resp.Error.Error())
 
-				return resp.Error
-			}
-		} else {
-			// force promotion
-			vr.logger.Info("force promoting volume due to known grpc error", "error", resp.Error)
-			volumeReplication.Force = true
-			resp := volumeReplication.Promote()
-			if resp.Error != nil {
-				vr.logger.Error(resp.Error, "failed to force promote volume")
-				setFailedPromotionCondition(&vr.instance.Status.Conditions, vr.instance.Generation, vr.instance.Spec.DataSource.Kind, "failed to force promote volume", resp.Error.Error())
-
-				return resp.Error
-			}
-		}
+		return resp.Error
 	}
 
 	return nil
