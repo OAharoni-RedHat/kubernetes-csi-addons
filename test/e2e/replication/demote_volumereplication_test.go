@@ -61,7 +61,9 @@ var _ = Describe("DemoteVolumeReplication", func() {
 				fmt.Fprintf(GinkgoWriter, "  [DR1][PVC] %s\n", FormatPVCStatus(p))
 			})
 			vrcName := "vrc-dem-" + nsName
-			vrcDR1 := CreateVolumeReplicationClass(ctx, cDR1, vrcName, env.Provisioner, secretName, secretNs, MirroringModeSnapshot)
+			By("Getting or creating VolumeReplicationClass on DR1")
+			vrcDR1, vrcDR1Owned := GetOrCreateVolumeReplicationClass(ctx, cDR1, env, vrcName, env.Provisioner, secretName, secretNs, MirroringModeSnapshot)
+			vrcName = vrcDR1.Name
 			vrDR1 := CreateVolumeReplication(ctx, cDR1, nsName, "vr-dr1-dem", vrcName, pvcDR1.Name, replicationv1alpha1.Primary)
 
 			By("Waiting for primary VR on DR1 to reach Replicating=True")
@@ -73,7 +75,8 @@ var _ = Describe("DemoteVolumeReplication", func() {
 			pvcDR2, pvDR2 := CreateSecondaryPVCFromPrimary(ctx, cDR1, cDR2, pvcDR1, nsName, "pvc-dr2-dem", func(p *corev1.PersistentVolumeClaim) {
 				fmt.Fprintf(GinkgoWriter, "  [DR2][PVC] %s\n", FormatPVCStatus(p))
 			})
-			vrcDR2 := CreateVolumeReplicationClass(ctx, cDR2, vrcName, env.Provisioner, secretName, secretNs, MirroringModeSnapshot)
+			By("Getting or creating VolumeReplicationClass on DR2")
+			vrcDR2, vrcDR2Owned := GetOrCreateVolumeReplicationClass(ctx, cDR2, env, vrcName, env.Provisioner, secretName, secretNs, MirroringModeSnapshot)
 			fmt.Fprintf(GinkgoWriter, "  [DEBUG] Creating VR with replicationState constant value=%v (should be 'secondary')\n", replicationv1alpha1.Secondary)
 			vrDR2 := CreateVolumeReplication(ctx, cDR2, nsName, "vr-dr2-dem", vrcName, pvcDR2.Name, replicationv1alpha1.Secondary)
 			fmt.Fprintf(GinkgoWriter, "  [DR2][VR] AFTER CREATION Spec.ReplicationState=%v (type=%T)\n", vrDR2.Spec.ReplicationState, vrDR2.Spec.ReplicationState)
@@ -98,11 +101,11 @@ var _ = Describe("DemoteVolumeReplication", func() {
 				DeleteNetworkFenceWithCleanup(cleanupCtx, cDR1, nf)
 				DeleteNetworkFenceClassWithCleanup(cleanupCtx, cDR1, nfc)
 				DeleteVolumeReplicationWithCleanup(cleanupCtx, cDR2, vrDR2)
-				DeleteVolumeReplicationClassWithCleanup(cleanupCtx, cDR2, vrcDR2)
+				MaybeDeleteVolumeReplicationClassWithCleanup(cleanupCtx, cDR2, vrcDR2, vrcDR2Owned)
 				DeletePVCWithCleanup(cleanupCtx, cDR2, pvcDR2)
 				DeletePV(cleanupCtx, cDR2, pvDR2)
 				DeleteVolumeReplicationWithCleanup(cleanupCtx, cDR1, vrDR1)
-				DeleteVolumeReplicationClassWithCleanup(cleanupCtx, cDR1, vrcDR1)
+				MaybeDeleteVolumeReplicationClassWithCleanup(cleanupCtx, cDR1, vrcDR1, vrcDR1Owned)
 				DeletePVCWithCleanup(cleanupCtx, cDR1, pvcDR1)
 				DeleteNamespace(cleanupCtx, cDR1, ns1)
 				DeleteNamespace(cleanupCtx, cDR2, ns2)
@@ -156,7 +159,9 @@ var _ = Describe("DemoteVolumeReplication", func() {
 				fmt.Fprintf(GinkgoWriter, "  [DR1][PVC] %s\n", FormatPVCStatus(p))
 			})
 			vrcName := "vrc-dem-idem-" + nsName
-			vrcDR1 := CreateVolumeReplicationClass(ctx, cDR1, vrcName, env.Provisioner, secretName, secretNs, MirroringModeSnapshot)
+			By("Getting or creating VolumeReplicationClass on DR1")
+			vrcDR1, vrcDR1Owned := GetOrCreateVolumeReplicationClass(ctx, cDR1, env, vrcName, env.Provisioner, secretName, secretNs, MirroringModeSnapshot)
+			vrcName = vrcDR1.Name
 			vrDR1 := CreateVolumeReplication(ctx, cDR1, nsName, "vr-dr1-dem-idem", vrcName, pvcDR1.Name, replicationv1alpha1.Primary)
 
 			By("Waiting for primary VR on DR1 to reach Replicating=True")
@@ -168,7 +173,8 @@ var _ = Describe("DemoteVolumeReplication", func() {
 			pvcDR2, pvDR2 := CreateSecondaryPVCFromPrimary(ctx, cDR1, cDR2, pvcDR1, nsName, "pvc-dr2-dem-idem", func(p *corev1.PersistentVolumeClaim) {
 				fmt.Fprintf(GinkgoWriter, "  [DR2][PVC] %s\n", FormatPVCStatus(p))
 			})
-			vrcDR2 := CreateVolumeReplicationClass(ctx, cDR2, vrcName, env.Provisioner, secretName, secretNs, MirroringModeSnapshot)
+			By("Getting or creating VolumeReplicationClass on DR2")
+			vrcDR2, vrcDR2Owned := GetOrCreateVolumeReplicationClass(ctx, cDR2, env, vrcName, env.Provisioner, secretName, secretNs, MirroringModeSnapshot)
 			vrDR2 := CreateVolumeReplication(ctx, cDR2, nsName, "vr-dr2-dem-idem", vrcName, pvcDR2.Name, replicationv1alpha1.Secondary)
 
 			By("Waiting for secondary VR on DR2 to reach Replicating=True")
@@ -179,11 +185,11 @@ var _ = Describe("DemoteVolumeReplication", func() {
 			DeferCleanup(func() {
 				cleanupCtx := context.Background()
 				DeleteVolumeReplicationWithCleanup(cleanupCtx, cDR2, vrDR2)
-				DeleteVolumeReplicationClassWithCleanup(cleanupCtx, cDR2, vrcDR2)
+				MaybeDeleteVolumeReplicationClassWithCleanup(cleanupCtx, cDR2, vrcDR2, vrcDR2Owned)
 				DeletePVCWithCleanup(cleanupCtx, cDR2, pvcDR2)
 				DeletePV(cleanupCtx, cDR2, pvDR2)
 				DeleteVolumeReplicationWithCleanup(cleanupCtx, cDR1, vrDR1)
-				DeleteVolumeReplicationClassWithCleanup(cleanupCtx, cDR1, vrcDR1)
+				MaybeDeleteVolumeReplicationClassWithCleanup(cleanupCtx, cDR1, vrcDR1, vrcDR1Owned)
 				DeletePVCWithCleanup(cleanupCtx, cDR1, pvcDR1)
 				DeleteNamespace(cleanupCtx, cDR1, ns1)
 				DeleteNamespace(cleanupCtx, cDR2, ns2)
@@ -236,7 +242,9 @@ var _ = Describe("DemoteVolumeReplication", func() {
 				fmt.Fprintf(GinkgoWriter, "  [DR1][PVC] %s\n", FormatPVCStatus(p))
 			})
 			vrcName := "vrc-dem-io-" + nsName
-			vrcDR1 := CreateVolumeReplicationClass(ctx, cDR1, vrcName, env.Provisioner, secretName, secretNs, MirroringModeSnapshot)
+			By("Getting or creating VolumeReplicationClass on DR1")
+			vrcDR1, vrcDR1Owned := GetOrCreateVolumeReplicationClass(ctx, cDR1, env, vrcName, env.Provisioner, secretName, secretNs, MirroringModeSnapshot)
+			vrcName = vrcDR1.Name
 			vrDR1 := CreateVolumeReplication(ctx, cDR1, nsName, "vr-dr1-dem-io", vrcName, pvcDR1.Name, replicationv1alpha1.Primary)
 
 			By("Waiting for primary VR on DR1 to reach Replicating=True")
@@ -248,7 +256,8 @@ var _ = Describe("DemoteVolumeReplication", func() {
 			pvcDR2, pvDR2 := CreateSecondaryPVCFromPrimary(ctx, cDR1, cDR2, pvcDR1, nsName, "pvc-dr2-dem-io", func(p *corev1.PersistentVolumeClaim) {
 				fmt.Fprintf(GinkgoWriter, "  [DR2][PVC] %s\n", FormatPVCStatus(p))
 			})
-			vrcDR2 := CreateVolumeReplicationClass(ctx, cDR2, vrcName, env.Provisioner, secretName, secretNs, MirroringModeSnapshot)
+			By("Getting or creating VolumeReplicationClass on DR2")
+			vrcDR2, vrcDR2Owned := GetOrCreateVolumeReplicationClass(ctx, cDR2, env, vrcName, env.Provisioner, secretName, secretNs, MirroringModeSnapshot)
 			vrDR2 := CreateVolumeReplication(ctx, cDR2, nsName, "vr-dr2-dem-io", vrcName, pvcDR2.Name, replicationv1alpha1.Secondary)
 
 			By("Waiting for secondary VR on DR2 to reach Replicating=True")
@@ -259,11 +268,11 @@ var _ = Describe("DemoteVolumeReplication", func() {
 			DeferCleanup(func() {
 				cleanupCtx := context.Background()
 				DeleteVolumeReplicationWithCleanup(cleanupCtx, cDR2, vrDR2)
-				DeleteVolumeReplicationClassWithCleanup(cleanupCtx, cDR2, vrcDR2)
+				MaybeDeleteVolumeReplicationClassWithCleanup(cleanupCtx, cDR2, vrcDR2, vrcDR2Owned)
 				DeletePVCWithCleanup(cleanupCtx, cDR2, pvcDR2)
 				DeletePV(cleanupCtx, cDR2, pvDR2)
 				DeleteVolumeReplicationWithCleanup(cleanupCtx, cDR1, vrDR1)
-				DeleteVolumeReplicationClassWithCleanup(cleanupCtx, cDR1, vrcDR1)
+				MaybeDeleteVolumeReplicationClassWithCleanup(cleanupCtx, cDR1, vrcDR1, vrcDR1Owned)
 				DeletePVCWithCleanup(cleanupCtx, cDR1, pvcDR1)
 				DeleteNamespace(cleanupCtx, cDR1, ns1)
 				DeleteNamespace(cleanupCtx, cDR2, ns2)
@@ -317,7 +326,9 @@ var _ = Describe("DemoteVolumeReplication", func() {
 				fmt.Fprintf(GinkgoWriter, "  [DR1][PVC] %s\n", FormatPVCStatus(p))
 			})
 			vrcName := "vrc-dem-force-" + nsName
-			vrcDR1 := CreateVolumeReplicationClass(ctx, cDR1, vrcName, env.Provisioner, secretName, secretNs, MirroringModeSnapshot)
+			By("Getting or creating VolumeReplicationClass on DR1")
+			vrcDR1, vrcDR1Owned := GetOrCreateVolumeReplicationClass(ctx, cDR1, env, vrcName, env.Provisioner, secretName, secretNs, MirroringModeSnapshot)
+			vrcName = vrcDR1.Name
 			vrDR1 := CreateVolumeReplication(ctx, cDR1, nsName, "vr-dr1-dem-force", vrcName, pvcDR1.Name, replicationv1alpha1.Primary)
 
 			By("Waiting for primary VR on DR1 to reach Replicating=True")
@@ -329,7 +340,8 @@ var _ = Describe("DemoteVolumeReplication", func() {
 			pvcDR2, pvDR2 := CreateSecondaryPVCFromPrimary(ctx, cDR1, cDR2, pvcDR1, nsName, "pvc-dr2-dem-force", func(p *corev1.PersistentVolumeClaim) {
 				fmt.Fprintf(GinkgoWriter, "  [DR2][PVC] %s\n", FormatPVCStatus(p))
 			})
-			vrcDR2 := CreateVolumeReplicationClass(ctx, cDR2, vrcName, env.Provisioner, secretName, secretNs, MirroringModeSnapshot)
+			By("Getting or creating VolumeReplicationClass on DR2")
+			vrcDR2, vrcDR2Owned := GetOrCreateVolumeReplicationClass(ctx, cDR2, env, vrcName, env.Provisioner, secretName, secretNs, MirroringModeSnapshot)
 			vrDR2 := CreateVolumeReplication(ctx, cDR2, nsName, "vr-dr2-dem-force", vrcName, pvcDR2.Name, replicationv1alpha1.Secondary)
 
 			By("Waiting for secondary VR on DR2 to reach Replicating=True")
@@ -340,11 +352,11 @@ var _ = Describe("DemoteVolumeReplication", func() {
 			DeferCleanup(func() {
 				cleanupCtx := context.Background()
 				DeleteVolumeReplicationWithCleanup(cleanupCtx, cDR2, vrDR2)
-				DeleteVolumeReplicationClassWithCleanup(cleanupCtx, cDR2, vrcDR2)
+				MaybeDeleteVolumeReplicationClassWithCleanup(cleanupCtx, cDR2, vrcDR2, vrcDR2Owned)
 				DeletePVCWithCleanup(cleanupCtx, cDR2, pvcDR2)
 				DeletePV(cleanupCtx, cDR2, pvDR2)
 				DeleteVolumeReplicationWithCleanup(cleanupCtx, cDR1, vrDR1)
-				DeleteVolumeReplicationClassWithCleanup(cleanupCtx, cDR1, vrcDR1)
+				MaybeDeleteVolumeReplicationClassWithCleanup(cleanupCtx, cDR1, vrcDR1, vrcDR1Owned)
 				DeletePVCWithCleanup(cleanupCtx, cDR1, pvcDR1)
 				DeleteNamespace(cleanupCtx, cDR1, ns1)
 				DeleteNamespace(cleanupCtx, cDR2, ns2)
@@ -402,7 +414,9 @@ var _ = Describe("DemoteVolumeReplication", func() {
 				fmt.Fprintf(GinkgoWriter, "  [DR1][PVC] %s\n", FormatPVCStatus(p))
 			})
 			vrcName := "vrc-dem-003-" + nsName
-			vrcDR1 := CreateVolumeReplicationClass(ctx, cDR1, vrcName, env.Provisioner, secretName, secretNs, MirroringModeSnapshot)
+			By("Getting or creating VolumeReplicationClass on DR1")
+			vrcDR1, vrcDR1Owned := GetOrCreateVolumeReplicationClass(ctx, cDR1, env, vrcName, env.Provisioner, secretName, secretNs, MirroringModeSnapshot)
+			vrcName = vrcDR1.Name
 			vrDR1 := CreateVolumeReplication(ctx, cDR1, nsName, "vr-dr1-dem-003", vrcName, pvcDR1.Name, replicationv1alpha1.Primary)
 
 			By("Waiting for primary VR on DR1 to reach Replicating=True")
@@ -414,7 +428,8 @@ var _ = Describe("DemoteVolumeReplication", func() {
 			pvcDR2, pvDR2 := CreateSecondaryPVCFromPrimary(ctx, cDR1, cDR2, pvcDR1, nsName, "pvc-dr2-dem-003", func(p *corev1.PersistentVolumeClaim) {
 				fmt.Fprintf(GinkgoWriter, "  [DR2][PVC] %s\n", FormatPVCStatus(p))
 			})
-			vrcDR2 := CreateVolumeReplicationClass(ctx, cDR2, vrcName, env.Provisioner, secretName, secretNs, MirroringModeSnapshot)
+			By("Getting or creating VolumeReplicationClass on DR2")
+			vrcDR2, vrcDR2Owned := GetOrCreateVolumeReplicationClass(ctx, cDR2, env, vrcName, env.Provisioner, secretName, secretNs, MirroringModeSnapshot)
 			vrDR2 := CreateVolumeReplication(ctx, cDR2, nsName, "vr-dr2-dem-003", vrcName, pvcDR2.Name, replicationv1alpha1.Secondary)
 
 			By("Waiting for secondary VR on DR2 to reach Replicating=True")
@@ -430,11 +445,11 @@ var _ = Describe("DemoteVolumeReplication", func() {
 				DeleteNetworkFenceWithCleanup(cleanupCtx, cDR1, nf, vrDR1)
 				DeleteNetworkFenceClassWithCleanup(cleanupCtx, cDR1, nfc)
 				DeleteVolumeReplicationWithCleanup(cleanupCtx, cDR2, vrDR2)
-				DeleteVolumeReplicationClassWithCleanup(cleanupCtx, cDR2, vrcDR2)
+				MaybeDeleteVolumeReplicationClassWithCleanup(cleanupCtx, cDR2, vrcDR2, vrcDR2Owned)
 				DeletePVCWithCleanup(cleanupCtx, cDR2, pvcDR2)
 				DeletePV(cleanupCtx, cDR2, pvDR2)
 				DeleteVolumeReplicationWithCleanup(cleanupCtx, cDR1, vrDR1)
-				DeleteVolumeReplicationClassWithCleanup(cleanupCtx, cDR1, vrcDR1)
+				MaybeDeleteVolumeReplicationClassWithCleanup(cleanupCtx, cDR1, vrcDR1, vrcDR1Owned)
 				DeletePVCWithCleanup(cleanupCtx, cDR1, pvcDR1)
 				DeleteNamespace(cleanupCtx, cDR1, ns1)
 				DeleteNamespace(cleanupCtx, cDR2, ns2)
@@ -547,7 +562,9 @@ var _ = Describe("DemoteVolumeReplication", func() {
 				fmt.Fprintf(GinkgoWriter, "  [DR1][PVC] %s\n", FormatPVCStatus(p))
 			})
 			vrcName := "vrc-dem-004-" + nsName
-			vrcDR1 := CreateVolumeReplicationClass(ctx, cDR1, vrcName, env.Provisioner, secretName, secretNs, MirroringModeSnapshot)
+			By("Getting or creating VolumeReplicationClass on DR1")
+			vrcDR1, vrcDR1Owned := GetOrCreateVolumeReplicationClass(ctx, cDR1, env, vrcName, env.Provisioner, secretName, secretNs, MirroringModeSnapshot)
+			vrcName = vrcDR1.Name
 			vrDR1 := CreateVolumeReplication(ctx, cDR1, nsName, "vr-dr1-dem-004", vrcName, pvcDR1.Name, replicationv1alpha1.Primary)
 
 			By("Waiting for primary VR on DR1 to reach Replicating=True")
@@ -559,7 +576,8 @@ var _ = Describe("DemoteVolumeReplication", func() {
 			pvcDR2, pvDR2 := CreateSecondaryPVCFromPrimary(ctx, cDR1, cDR2, pvcDR1, nsName, "pvc-dr2-dem-004", func(p *corev1.PersistentVolumeClaim) {
 				fmt.Fprintf(GinkgoWriter, "  [DR2][PVC] %s\n", FormatPVCStatus(p))
 			})
-			vrcDR2 := CreateVolumeReplicationClass(ctx, cDR2, vrcName, env.Provisioner, secretName, secretNs, MirroringModeSnapshot)
+			By("Getting or creating VolumeReplicationClass on DR2")
+			vrcDR2, vrcDR2Owned := GetOrCreateVolumeReplicationClass(ctx, cDR2, env, vrcName, env.Provisioner, secretName, secretNs, MirroringModeSnapshot)
 			vrDR2 := CreateVolumeReplication(ctx, cDR2, nsName, "vr-dr2-dem-004", vrcName, pvcDR2.Name, replicationv1alpha1.Secondary)
 
 			By("Waiting for secondary VR on DR2 to reach Replicating=True")
@@ -575,11 +593,11 @@ var _ = Describe("DemoteVolumeReplication", func() {
 				DeleteNetworkFenceWithCleanup(cleanupCtx, cDR1, nf)
 				DeleteNetworkFenceClassWithCleanup(cleanupCtx, cDR1, nfc)
 				DeleteVolumeReplicationWithCleanup(cleanupCtx, cDR2, vrDR2)
-				DeleteVolumeReplicationClassWithCleanup(cleanupCtx, cDR2, vrcDR2)
+				MaybeDeleteVolumeReplicationClassWithCleanup(cleanupCtx, cDR2, vrcDR2, vrcDR2Owned)
 				DeletePVCWithCleanup(cleanupCtx, cDR2, pvcDR2)
 				DeletePV(cleanupCtx, cDR2, pvDR2)
 				DeleteVolumeReplicationWithCleanup(cleanupCtx, cDR1, vrDR1)
-				DeleteVolumeReplicationClassWithCleanup(cleanupCtx, cDR1, vrcDR1)
+				MaybeDeleteVolumeReplicationClassWithCleanup(cleanupCtx, cDR1, vrcDR1, vrcDR1Owned)
 				DeletePVCWithCleanup(cleanupCtx, cDR1, pvcDR1)
 				DeleteNamespace(cleanupCtx, cDR1, ns1)
 				DeleteNamespace(cleanupCtx, cDR2, ns2)

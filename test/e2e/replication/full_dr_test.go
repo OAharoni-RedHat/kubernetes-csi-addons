@@ -57,14 +57,16 @@ var _ = Describe("Full DR (two clusters)", func() {
 			})
 
 			vrcName := "vrc-full-dr-" + nsName
-			vrc := CreateVolumeReplicationClass(ctx, cDR1, vrcName, env.Provisioner, secretName, secretNs, MirroringModeSnapshot)
+			By("Getting or creating VolumeReplicationClass on DR1")
+			vrc, vrcOwned := GetOrCreateVolumeReplicationClass(ctx, cDR1, env, vrcName, env.Provisioner, secretName, secretNs, MirroringModeSnapshot)
+			vrcName = vrc.Name
 			vrName := "vr-dr1"
 			vr := CreateVolumeReplication(ctx, cDR1, nsName, vrName, vrcName, pvc.Name, replicationv1alpha1.Primary)
 
 			DeferCleanup(func() {
 				cleanupCtx := context.Background()
 				DeleteVolumeReplicationWithCleanup(cleanupCtx, cDR1, vr)
-				DeleteVolumeReplicationClassWithCleanup(cleanupCtx, cDR1, vrc)
+				MaybeDeleteVolumeReplicationClassWithCleanup(cleanupCtx, cDR1, vrc, vrcOwned)
 				DeletePVCWithCleanup(cleanupCtx, cDR1, pvc)
 				DeleteNamespace(cleanupCtx, cDR1, ns1)
 				DeleteNamespace(cleanupCtx, cDR2, ns2)

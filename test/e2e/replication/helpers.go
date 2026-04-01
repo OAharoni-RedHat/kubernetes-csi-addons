@@ -86,6 +86,10 @@ type TestEnv struct {
 	Provisioner           string
 	ReplicationSecretName string // if set with ReplicationSecretNamespace, use existing secret
 	ReplicationSecretNs   string
+	// VolumeReplicationClassName, if set, causes tests to fetch and reuse this pre-existing
+	// VolumeReplicationClass instead of creating a new one per test. The VRC will not be
+	// deleted during cleanup. Set via VOLUME_REPLICATION_CLASS env var.
+	VolumeReplicationClassName string
 	// Full DR: when DR1_CONTEXT and DR2_CONTEXT are both set, tests can create resources on both clusters.
 	DR1Context string
 	DR2Context string
@@ -119,13 +123,14 @@ func GetTestEnv() TestEnv {
 	dr1 := os.Getenv("DR1_CONTEXT")
 	dr2 := os.Getenv("DR2_CONTEXT")
 	return TestEnv{
-		StorageClass:          sc,
-		Provisioner:           provisioner,
-		ReplicationSecretName: os.Getenv("REPLICATION_SECRET_NAME"),
-		ReplicationSecretNs:   os.Getenv("REPLICATION_SECRET_NAMESPACE"),
-		DR1Context:            dr1,
-		DR2Context:            dr2,
-		FullDR:                dr1 != "" && dr2 != "",
+		StorageClass:               sc,
+		Provisioner:                provisioner,
+		ReplicationSecretName:      os.Getenv("REPLICATION_SECRET_NAME"),
+		ReplicationSecretNs:        os.Getenv("REPLICATION_SECRET_NAMESPACE"),
+		VolumeReplicationClassName: os.Getenv("VOLUME_REPLICATION_CLASS"),
+		DR1Context:                 dr1,
+		DR2Context:                 dr2,
+		FullDR:                     dr1 != "" && dr2 != "",
 	}
 }
 
@@ -362,6 +367,39 @@ func CreateVolumeReplicationClassWithParams(ctx context.Context, c client.Client
 	err := c.Create(ctx, vrc)
 	Expect(err).NotTo(HaveOccurred())
 	return vrc
+}
+
+// GetOrCreateVolumeReplicationClass fetches a pre-existing VolumeReplicationClass when
+// VOLUME_REPLICATION_CLASS is set in the environment (env.VolumeReplicationClassName != ""),
+// otherwise it creates a new one with the given parameters.
+//
+// The returned boolean (owned) indicates whether the test created the VRC:
+//   - owned=true: the test created the VRC; it must be deleted in cleanup.
+//   - owned=false: the VRC is pre-existing; cleanup must skip deletion.
+//
+// Use MaybeDeleteVolumeReplicationClassWithCleanup in deferred cleanup to handle both cases.
+func GetOrCreateVolumeReplicationClass(ctx context.Context, c client.Client, env TestEnv, name, provisioner, secretName, secretNamespace string, mode MirroringMode) (*replicationv1alpha1.VolumeReplicationClass, bool) {
+	if env.VolumeReplicationClassName != "" {
+		vrc := &replicationv1alpha1.VolumeReplicationClass{}
+		err := c.Get(ctx, client.ObjectKey{Name: env.VolumeReplicationClassName}, vrc)
+		Expect(err).NotTo(HaveOccurred(), "pre-existing VolumeReplicationClass %q not found (set VOLUME_REPLICATION_CLASS to an existing VRC name)", env.VolumeReplicationClassName)
+		return vrc, false
+	}
+	return CreateVolumeReplicationClass(ctx, c, name, provisioner, secretName, secretNamespace, mode), true
+}
+
+// MaybeDeleteVolumeReplicationClassWithCleanup deletes the VRC only when owned is true.
+// When owned is false the VRC is pre-existing and must not be deleted by the test.
+// Use this in deferred cleanup together with GetOrCreateVolumeReplicationClass.
+func MaybeDeleteVolumeReplicationClassWithCleanup(ctx context.Context, c client.Client, vrc *replicationv1alpha1.VolumeReplicationClass, owned bool) {
+	if vrc == nil {
+		return
+	}
+	if !owned {
+		Logf("[CLEANUP]", "Skipping deletion of pre-existing VolumeReplicationClass: %s", vrc.Name)
+		return
+	}
+	DeleteVolumeReplicationClassWithCleanup(ctx, c, vrc)
 }
 
 // CreateVolumeReplication creates a VolumeReplication for the given PVC.

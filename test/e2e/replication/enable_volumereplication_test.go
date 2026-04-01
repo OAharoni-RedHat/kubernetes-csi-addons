@@ -54,8 +54,9 @@ var _ = Describe("EnableVolumeReplication", func() {
 			})
 
 			vrcName := "vrc-snapshot-" + nsName
-			By("Creating VolumeReplicationClass (snapshot, 1m interval) " + vrcName)
-			vrc := CreateVolumeReplicationClass(ctx, c, vrcName, env.Provisioner, secretName, secretNs, MirroringModeSnapshot)
+			By("Getting or creating VolumeReplicationClass (snapshot, 1m interval)")
+			vrc, vrcOwned := GetOrCreateVolumeReplicationClass(ctx, c, env, vrcName, env.Provisioner, secretName, secretNs, MirroringModeSnapshot)
+			vrcName = vrc.Name
 
 			vrName := "vr-snapshot"
 			By("Creating VolumeReplication " + vrName)
@@ -64,7 +65,7 @@ var _ = Describe("EnableVolumeReplication", func() {
 			DeferCleanup(func() {
 				cleanupCtx := context.Background()
 				DeleteVolumeReplicationWithCleanup(cleanupCtx, c, vr)
-				DeleteVolumeReplicationClassWithCleanup(cleanupCtx, c, vrc)
+				MaybeDeleteVolumeReplicationClassWithCleanup(cleanupCtx, c, vrc, vrcOwned)
 				DeletePVCWithCleanup(cleanupCtx, c, pvc)
 				DeleteNamespace(cleanupCtx, c, ns)
 			})
@@ -101,8 +102,9 @@ var _ = Describe("EnableVolumeReplication", func() {
 			})
 
 			vrcName := "vrc-journal-" + nsName
-			By("Creating VolumeReplicationClass (journal mode) " + vrcName)
-			vrc := CreateVolumeReplicationClass(ctx, c, vrcName, env.Provisioner, secretName, secretNs, MirroringModeJournal)
+			By("Getting or creating VolumeReplicationClass (journal mode)")
+			vrc, vrcOwned := GetOrCreateVolumeReplicationClass(ctx, c, env, vrcName, env.Provisioner, secretName, secretNs, MirroringModeJournal)
+			vrcName = vrc.Name
 
 			vrName := "vr-journal"
 			By("Creating VolumeReplication " + vrName)
@@ -111,7 +113,7 @@ var _ = Describe("EnableVolumeReplication", func() {
 			DeferCleanup(func() {
 				cleanupCtx := context.Background()
 				DeleteVolumeReplicationWithCleanup(cleanupCtx, c, vr)
-				DeleteVolumeReplicationClassWithCleanup(cleanupCtx, c, vrc)
+				MaybeDeleteVolumeReplicationClassWithCleanup(cleanupCtx, c, vrc, vrcOwned)
 				DeletePVCWithCleanup(cleanupCtx, c, pvc)
 				DeleteNamespace(cleanupCtx, c, ns)
 			})
@@ -153,8 +155,9 @@ var _ = Describe("EnableVolumeReplication", func() {
 			})
 
 			vrcName := "vrc-fence-" + nsName
-			By("Creating VolumeReplicationClass (snapshot) " + vrcName)
-			vrc := CreateVolumeReplicationClass(ctx, c, vrcName, env.Provisioner, secretName, secretNs, MirroringModeSnapshot)
+			By("Getting or creating VolumeReplicationClass (snapshot)")
+			vrc, vrcOwned := GetOrCreateVolumeReplicationClass(ctx, c, env, vrcName, env.Provisioner, secretName, secretNs, MirroringModeSnapshot)
+			vrcName = vrc.Name
 
 			nfcName := "nfc-fence-" + nsName
 			By("Creating NetworkFenceClass " + nfcName + " (same provisioner and secret as VRC)")
@@ -183,7 +186,7 @@ var _ = Describe("EnableVolumeReplication", func() {
 				DeleteNetworkFenceWithCleanup(cleanupCtx, c, nf)
 				DeleteVolumeReplicationWithCleanup(cleanupCtx, c, vr)
 				DeleteNetworkFenceClassWithCleanup(cleanupCtx, c, nfc)
-				DeleteVolumeReplicationClassWithCleanup(cleanupCtx, c, vrc)
+				MaybeDeleteVolumeReplicationClassWithCleanup(cleanupCtx, c, vrc, vrcOwned)
 				DeletePVCWithCleanup(cleanupCtx, c, pvc)
 				DeleteNamespace(cleanupCtx, c, ns)
 			})
@@ -233,8 +236,9 @@ var _ = Describe("EnableVolumeReplication", func() {
 			})
 
 			vrcName := "vrc-idem-" + nsName
-			By("Creating VolumeReplicationClass (snapshot, 1m interval) " + vrcName)
-			vrc := CreateVolumeReplicationClass(ctx, c, vrcName, env.Provisioner, secretName, secretNs, MirroringModeSnapshot)
+			By("Getting or creating VolumeReplicationClass (snapshot, 1m interval)")
+			vrc, vrcOwned := GetOrCreateVolumeReplicationClass(ctx, c, env, vrcName, env.Provisioner, secretName, secretNs, MirroringModeSnapshot)
+			vrcName = vrc.Name
 
 			vrName := "vr-idem"
 			By("Creating first VolumeReplication " + vrName)
@@ -264,7 +268,7 @@ var _ = Describe("EnableVolumeReplication", func() {
 				cleanupCtx := context.Background()
 				DeleteVolumeReplicationWithCleanup(cleanupCtx, c, vr2)
 				DeleteVolumeReplicationWithCleanup(cleanupCtx, c, vr)
-				DeleteVolumeReplicationClassWithCleanup(cleanupCtx, c, vrc)
+				MaybeDeleteVolumeReplicationClassWithCleanup(cleanupCtx, c, vrc, vrcOwned)
 				DeletePVCWithCleanup(cleanupCtx, c, pvc)
 				DeleteNamespace(cleanupCtx, c, ns)
 			})

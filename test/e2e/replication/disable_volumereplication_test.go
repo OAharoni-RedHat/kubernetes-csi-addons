@@ -54,8 +54,9 @@ var _ = Describe("DisableVolumeReplication", func() {
 			})
 
 			vrcName := "vrc-dis-" + nsName
-			By("Creating VolumeReplicationClass (snapshot, 1m interval) " + vrcName)
-			vrc := CreateVolumeReplicationClass(ctx, c, vrcName, env.Provisioner, secretName, secretNs, MirroringModeSnapshot)
+			By("Getting or creating VolumeReplicationClass (snapshot, 1m interval)")
+			vrc, vrcOwned := GetOrCreateVolumeReplicationClass(ctx, c, env, vrcName, env.Provisioner, secretName, secretNs, MirroringModeSnapshot)
+			vrcName = vrc.Name
 
 			vrName := "vr-dis-primary"
 			By("Creating VolumeReplication (primary) " + vrName)
@@ -63,7 +64,7 @@ var _ = Describe("DisableVolumeReplication", func() {
 
 			DeferCleanup(func() {
 				cleanupCtx := context.Background()
-				DeleteVolumeReplicationClassWithCleanup(cleanupCtx, c, vrc)
+				MaybeDeleteVolumeReplicationClassWithCleanup(cleanupCtx, c, vrc, vrcOwned)
 				DeletePVCWithCleanup(cleanupCtx, c, pvc)
 				DeleteNamespace(cleanupCtx, c, ns)
 			})
@@ -112,7 +113,9 @@ var _ = Describe("DisableVolumeReplication", func() {
 				fmt.Fprintf(GinkgoWriter, "  [DR1][PVC] %s\n", FormatPVCStatus(p))
 			})
 			vrcName := "vrc-dis-dr-" + nsName
-			vrcDR1 := CreateVolumeReplicationClass(ctx, cDR1, vrcName, env.Provisioner, secretName, secretNs, MirroringModeSnapshot)
+			By("Getting or creating VolumeReplicationClass on DR1")
+			vrcDR1, vrcDR1Owned := GetOrCreateVolumeReplicationClass(ctx, cDR1, env, vrcName, env.Provisioner, secretName, secretNs, MirroringModeSnapshot)
+			vrcName = vrcDR1.Name
 			vrDR1 := CreateVolumeReplication(ctx, cDR1, nsName, "vr-dr1-primary", vrcName, pvcDR1.Name, replicationv1alpha1.Primary)
 
 			By("Waiting for primary VR on DR1 to reach Replicating=True")
@@ -124,17 +127,18 @@ var _ = Describe("DisableVolumeReplication", func() {
 			pvcDR2, pvDR2 := CreateSecondaryPVCFromPrimary(ctx, cDR1, cDR2, pvcDR1, nsName, "pvc-dr2-secondary", func(p *corev1.PersistentVolumeClaim) {
 				fmt.Fprintf(GinkgoWriter, "  [DR2][PVC] %s\n", FormatPVCStatus(p))
 			})
-			vrcDR2 := CreateVolumeReplicationClass(ctx, cDR2, vrcName, env.Provisioner, secretName, secretNs, MirroringModeSnapshot)
+			By("Getting or creating VolumeReplicationClass on DR2")
+			vrcDR2, vrcDR2Owned := GetOrCreateVolumeReplicationClass(ctx, cDR2, env, vrcName, env.Provisioner, secretName, secretNs, MirroringModeSnapshot)
 			vrDR2 := CreateVolumeReplication(ctx, cDR2, nsName, "vr-dr2-secondary", vrcName, pvcDR2.Name, replicationv1alpha1.Secondary)
 
 			DeferCleanup(func() {
 				cleanupCtx := context.Background()
 				DeleteVolumeReplicationWithCleanup(cleanupCtx, cDR2, vrDR2)
-				DeleteVolumeReplicationClassWithCleanup(cleanupCtx, cDR2, vrcDR2)
+				MaybeDeleteVolumeReplicationClassWithCleanup(cleanupCtx, cDR2, vrcDR2, vrcDR2Owned)
 				DeletePVCWithCleanup(cleanupCtx, cDR2, pvcDR2)
 				DeletePV(cleanupCtx, cDR2, pvDR2)
 				DeleteVolumeReplicationWithCleanup(cleanupCtx, cDR1, vrDR1)
-				DeleteVolumeReplicationClassWithCleanup(cleanupCtx, cDR1, vrcDR1)
+				MaybeDeleteVolumeReplicationClassWithCleanup(cleanupCtx, cDR1, vrcDR1, vrcDR1Owned)
 				DeletePVCWithCleanup(cleanupCtx, cDR1, pvcDR1)
 				DeleteNamespace(cleanupCtx, cDR1, ns1)
 				DeleteNamespace(cleanupCtx, cDR2, ns2)
@@ -246,8 +250,9 @@ var _ = Describe("DisableVolumeReplication", func() {
 			})
 
 			vrcName := "vrc-fence-dis-" + nsName
-			By("Creating VolumeReplicationClass (snapshot)")
-			vrc := CreateVolumeReplicationClass(ctx, c, vrcName, env.Provisioner, secretName, secretNs, MirroringModeSnapshot)
+			By("Getting or creating VolumeReplicationClass (snapshot)")
+			vrc, vrcOwned := GetOrCreateVolumeReplicationClass(ctx, c, env, vrcName, env.Provisioner, secretName, secretNs, MirroringModeSnapshot)
+			vrcName = vrc.Name
 
 			nfcName := "nfc-dis-fence-" + nsName
 			By("Creating NetworkFenceClass")
@@ -280,7 +285,7 @@ var _ = Describe("DisableVolumeReplication", func() {
 				// Unfence to clean up properly
 				DeleteNetworkFenceWithCleanup(cleanupCtx, c, nf)
 				DeleteNetworkFenceClassWithCleanup(cleanupCtx, c, nfc)
-				DeleteVolumeReplicationClassWithCleanup(cleanupCtx, c, vrc)
+				MaybeDeleteVolumeReplicationClassWithCleanup(cleanupCtx, c, vrc, vrcOwned)
 				DeletePVCWithCleanup(cleanupCtx, c, pvc)
 				DeleteNamespace(cleanupCtx, c, ns)
 			})
@@ -313,8 +318,9 @@ var _ = Describe("DisableVolumeReplication", func() {
 			})
 
 			vrcName := "vrc-fence-dis-force-" + nsName
-			By("Creating VolumeReplicationClass (snapshot)")
-			vrc := CreateVolumeReplicationClass(ctx, c, vrcName, env.Provisioner, secretName, secretNs, MirroringModeSnapshot)
+			By("Getting or creating VolumeReplicationClass (snapshot)")
+			vrc, vrcOwned := GetOrCreateVolumeReplicationClass(ctx, c, env, vrcName, env.Provisioner, secretName, secretNs, MirroringModeSnapshot)
+			vrcName = vrc.Name
 
 			nfcName := "nfc-dis-fence-force-" + nsName
 			By("Creating NetworkFenceClass")
@@ -347,7 +353,7 @@ var _ = Describe("DisableVolumeReplication", func() {
 				// Unfence to clean up properly
 				DeleteNetworkFenceWithCleanup(cleanupCtx, c, nf)
 				DeleteNetworkFenceClassWithCleanup(cleanupCtx, c, nfc)
-				DeleteVolumeReplicationClassWithCleanup(cleanupCtx, c, vrc)
+				MaybeDeleteVolumeReplicationClassWithCleanup(cleanupCtx, c, vrc, vrcOwned)
 				DeletePVCWithCleanup(cleanupCtx, c, pvc)
 				DeleteNamespace(cleanupCtx, c, ns)
 			})
@@ -381,8 +387,9 @@ var _ = Describe("DisableVolumeReplication", func() {
 			})
 
 			vrcName := "vrc-dis-force-" + nsName
-			By("Creating VolumeReplicationClass (snapshot)")
-			vrc := CreateVolumeReplicationClass(ctx, c, vrcName, env.Provisioner, secretName, secretNs, MirroringModeSnapshot)
+			By("Getting or creating VolumeReplicationClass (snapshot)")
+			vrc, vrcOwned := GetOrCreateVolumeReplicationClass(ctx, c, env, vrcName, env.Provisioner, secretName, secretNs, MirroringModeSnapshot)
+			vrcName = vrc.Name
 
 			vrName := "vr-dis-force"
 			By("Creating VolumeReplication (primary)")
@@ -395,7 +402,7 @@ var _ = Describe("DisableVolumeReplication", func() {
 
 			DeferCleanup(func() {
 				cleanupCtx := context.Background()
-				DeleteVolumeReplicationClassWithCleanup(cleanupCtx, c, vrc)
+				MaybeDeleteVolumeReplicationClassWithCleanup(cleanupCtx, c, vrc, vrcOwned)
 				DeletePVCWithCleanup(cleanupCtx, c, pvc)
 				DeleteNamespace(cleanupCtx, c, ns)
 			})
@@ -438,7 +445,9 @@ var _ = Describe("DisableVolumeReplication", func() {
 				fmt.Fprintf(GinkgoWriter, "  [DR1][PVC] %s\n", FormatPVCStatus(p))
 			})
 			vrcName := "vrc-dis-force-dr-" + nsName
-			vrcDR1 := CreateVolumeReplicationClass(ctx, cDR1, vrcName, env.Provisioner, secretName, secretNs, MirroringModeSnapshot)
+			By("Getting or creating VolumeReplicationClass on DR1")
+			vrcDR1, vrcDR1Owned := GetOrCreateVolumeReplicationClass(ctx, cDR1, env, vrcName, env.Provisioner, secretName, secretNs, MirroringModeSnapshot)
+			vrcName = vrcDR1.Name
 			vrDR1 := CreateVolumeReplication(ctx, cDR1, nsName, "vr-dr1-force", vrcName, pvcDR1.Name, replicationv1alpha1.Primary)
 
 			By("Waiting for primary VR on DR1 to reach Replicating=True")
@@ -450,7 +459,8 @@ var _ = Describe("DisableVolumeReplication", func() {
 			pvcDR2, pvDR2 := CreateSecondaryPVCFromPrimary(ctx, cDR1, cDR2, pvcDR1, nsName, "pvc-dr2-force", func(p *corev1.PersistentVolumeClaim) {
 				fmt.Fprintf(GinkgoWriter, "  [DR2][PVC] %s\n", FormatPVCStatus(p))
 			})
-			vrcDR2 := CreateVolumeReplicationClass(ctx, cDR2, vrcName, env.Provisioner, secretName, secretNs, MirroringModeSnapshot)
+			By("Getting or creating VolumeReplicationClass on DR2")
+			vrcDR2, vrcDR2Owned := GetOrCreateVolumeReplicationClass(ctx, cDR2, env, vrcName, env.Provisioner, secretName, secretNs, MirroringModeSnapshot)
 			vrDR2 := CreateVolumeReplication(ctx, cDR2, nsName, "vr-dr2-force", vrcName, pvcDR2.Name, replicationv1alpha1.Secondary)
 
 			By("Waiting for secondary VR on DR2 to reach Replicating or Completed")
@@ -461,11 +471,11 @@ var _ = Describe("DisableVolumeReplication", func() {
 			DeferCleanup(func() {
 				cleanupCtx := context.Background()
 				DeleteVolumeReplicationWithCleanup(cleanupCtx, cDR2, vrDR2)
-				DeleteVolumeReplicationClassWithCleanup(cleanupCtx, cDR2, vrcDR2)
+				MaybeDeleteVolumeReplicationClassWithCleanup(cleanupCtx, cDR2, vrcDR2, vrcDR2Owned)
 				DeletePVCWithCleanup(cleanupCtx, cDR2, pvcDR2)
 				DeletePV(cleanupCtx, cDR2, pvDR2)
 				DeleteVolumeReplicationWithCleanup(cleanupCtx, cDR1, vrDR1)
-				DeleteVolumeReplicationClassWithCleanup(cleanupCtx, cDR1, vrcDR1)
+				MaybeDeleteVolumeReplicationClassWithCleanup(cleanupCtx, cDR1, vrcDR1, vrcDR1Owned)
 				DeletePVCWithCleanup(cleanupCtx, cDR1, pvcDR1)
 				DeleteNamespace(cleanupCtx, cDR1, ns1)
 				DeleteNamespace(cleanupCtx, cDR2, ns2)

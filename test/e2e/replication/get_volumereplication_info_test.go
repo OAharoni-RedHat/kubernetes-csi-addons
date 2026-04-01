@@ -45,8 +45,9 @@ var _ = Describe("GetVolumeReplicationInfo", func() {
 
 			secretName, secretNs := ReplicationSecretRef(ctx, c, env, nsName)
 			vrcName := "vrc-nonexist-" + nsName
-			By("Creating VolumeReplicationClass " + vrcName)
-			vrc := CreateVolumeReplicationClass(ctx, c, vrcName, env.Provisioner, secretName, secretNs, MirroringModeSnapshot)
+			By("Getting or creating VolumeReplicationClass")
+			vrc, vrcOwned := GetOrCreateVolumeReplicationClass(ctx, c, env, vrcName, env.Provisioner, secretName, secretNs, MirroringModeSnapshot)
+			vrcName = vrc.Name
 
 			// VR with dataSource pointing to a PVC that does not exist
 			vrName := "vr-nonexist"
@@ -56,7 +57,7 @@ var _ = Describe("GetVolumeReplicationInfo", func() {
 			DeferCleanup(func() {
 				cleanupCtx := context.Background()
 				DeleteVolumeReplicationWithCleanup(cleanupCtx, c, vr)
-				DeleteVolumeReplicationClassWithCleanup(cleanupCtx, c, vrc)
+				MaybeDeleteVolumeReplicationClassWithCleanup(cleanupCtx, c, vrc, vrcOwned)
 				DeleteNamespace(cleanupCtx, c, ns)
 			})
 
