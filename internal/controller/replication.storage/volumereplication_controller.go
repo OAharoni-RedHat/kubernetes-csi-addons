@@ -55,6 +55,7 @@ const (
 )
 
 var (
+	volumePromotionKnownErrors    = []codes.Code{codes.FailedPrecondition}
 	disableReplicationKnownErrors = []codes.Code{codes.NotFound}
 	enableReplicationKnownErrors  = []codes.Code{codes.FailedPrecondition}
 	getReplicationInfoKnownErrors = []codes.Code{codes.NotFound}
@@ -621,26 +622,33 @@ type volumeReplicationInstance struct {
 }
 
 // markVolumeAsPrimary defines and runs a set of tasks required to mark a volume as primary.
-// It first attempts a non-forced promote. If the driver returns any error, it retries with
-// force=true so that drivers requiring forced failover (e.g. PowerStore) succeed automatically.
 func (r *VolumeReplicationReconciler) markVolumeAsPrimary(vr *volumeReplicationInstance) error {
 	volumeReplication := replication.Replication{
 		Params: vr.commonRequestParameters,
 	}
 
 	resp := volumeReplication.Promote()
-	if resp.Error == nil {
-		return nil
-	}
-
-	vr.logger.Info("non-forced promote failed, retrying with force=true", "error", resp.Error)
-	volumeReplication.Force = true
-	resp = volumeReplication.Promote()
 	if resp.Error != nil {
-		vr.logger.Error(resp.Error, "failed to force promote volume")
-		setFailedPromotionCondition(&vr.instance.Status.Conditions, vr.instance.Generation, vr.instance.Spec.DataSource.Kind, "failed to force promote volume", resp.Error.Error())
+		isKnownError := resp.HasKnownGRPCError(volumePromotionKnownErrors)
+		if !isKnownError {
+			if resp.Error != nil {
+				vr.logger.Error(resp.Error, "failed to promote volume")
+				setFailedPromotionCondition(&vr.instance.Status.Conditions, vr.instance.Generation, vr.instance.Spec.DataSource.Kind, "failed to promote volume", resp.Error.Error())
 
-		return resp.Error
+				return resp.Error
+			}
+		} else {
+			// force promotion
+			vr.logger.Info("force promoting volume due to known grpc error", "error", resp.Error)
+			volumeReplication.Force = true
+			resp := volumeReplication.Promote()
+			if resp.Error != nil {
+				vr.logger.Error(resp.Error, "failed to force promote volume")
+				setFailedPromotionCondition(&vr.instance.Status.Conditions, vr.instance.Generation, vr.instance.Spec.DataSource.Kind, "failed to force promote volume", resp.Error.Error())
+
+				return resp.Error
+			}
+		}
 	}
 
 	return nil
