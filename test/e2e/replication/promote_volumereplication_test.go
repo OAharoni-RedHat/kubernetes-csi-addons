@@ -113,8 +113,26 @@ var _ = Describe("PromoteVolumeReplication", func() {
 				DeleteNamespace(cleanupCtx, cDR2, ns2)
 			})
 
+			By("L1-PROM-001: Demote primary VR on DR1 (Primary → Secondary)")
+			err := cDR1.Get(ctx, client.ObjectKeyFromObject(vrDR1), vrDR1)
+			Expect(err).NotTo(HaveOccurred())
+			vrDR1.Spec.ReplicationState = replicationv1alpha1.Secondary
+			err = cDR1.Update(ctx, vrDR1)
+			Expect(err).NotTo(HaveOccurred(), "Failed to demote primary VR to Secondary")
+
+			By("Waiting for primary VR on DR1 to transition to Secondary")
+			Eventually(func() string {
+				_ = cDR1.Get(ctx, client.ObjectKeyFromObject(vrDR1), vrDR1)
+				fmt.Fprintf(GinkgoWriter, "  [DR1][VR] demoting: %s\n", FormatVRStatus(vrDR1))
+				return string(vrDR1.Status.State)
+			}, 5*time.Minute, 5*time.Second).Should(Equal(string(replicationv1alpha1.SecondaryState)),
+				"Primary VR should transition to Secondary state before promoting the other side")
+
+			By("Waiting for storage array to reverse replication roles (reprotect)")
+			time.Sleep(5 * time.Minute)
+
 			By("L1-PROM-001: Promote secondary VR on DR2 by changing replicationState to Primary")
-			err := cDR2.Get(ctx, client.ObjectKeyFromObject(vrDR2), vrDR2)
+			err = cDR2.Get(ctx, client.ObjectKeyFromObject(vrDR2), vrDR2)
 			Expect(err).NotTo(HaveOccurred())
 			vrDR2.Spec.ReplicationState = replicationv1alpha1.Primary
 			err = cDR2.Update(ctx, vrDR2)
