@@ -18,8 +18,10 @@ package replication
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 	"time"
@@ -94,6 +96,14 @@ type TestEnv struct {
 	DR1Context string
 	DR2Context string
 	FullDR     bool
+	// Target array configuration for resolving the secondary volume handle via pstcli.
+	// Required for drivers (e.g. PowerStore) where the replicated volume has a different UUID
+	// on the target array. Set via TARGET_ARRAY_IP, TARGET_ARRAY_USER, TARGET_ARRAY_PASSWORD,
+	// and TARGET_ARRAY_GLOBAL_ID environment variables.
+	TargetArrayIP       string
+	TargetArrayUser     string
+	TargetArrayPassword string
+	TargetArrayGlobalID string
 }
 
 // getReplicationPollTimeout returns the timeout for waiting on VolumeReplication conditions.
@@ -131,6 +141,10 @@ func GetTestEnv() TestEnv {
 		DR1Context:                 dr1,
 		DR2Context:                 dr2,
 		FullDR:                     dr1 != "" && dr2 != "",
+		TargetArrayIP:              os.Getenv("TARGET_ARRAY_IP"),
+		TargetArrayUser:            os.Getenv("TARGET_ARRAY_USER"),
+		TargetArrayPassword:        os.Getenv("TARGET_ARRAY_PASSWORD"),
+		TargetArrayGlobalID:        os.Getenv("TARGET_ARRAY_GLOBAL_ID"),
 	}
 }
 
@@ -237,28 +251,74 @@ func CreatePVC(ctx context.Context, c client.Client, namespace, name, storageCla
 	return pvc
 }
 
-// CreateSecondaryPVCFromPrimary restores the secondary PVC from the primary for RBD mirroring.
-// It backs up the PV and PVC from the primary cluster, strips claimRef from the PV, and applies
-// both on the secondary cluster so the PVC binds to the mirror image created by rbd-mirror.
+// ResolveTargetVolumeHandle queries the target PowerStore array via pstcli to find the replicated
+// volume's UUID, then constructs the correct CSI volume handle for the secondary cluster.
+// primaryVolumeHandle is the CSI volumeHandle from the primary PV (format: uuid/globalID/protocol).
+// pvName is the PV name on the primary cluster (PowerStore replicates with the same volume name).
+// Returns the target volume handle (format: targetUUID/targetGlobalID/protocol).
+// Requires TARGET_ARRAY_IP, TARGET_ARRAY_USER, TARGET_ARRAY_PASSWORD, and TARGET_ARRAY_GLOBAL_ID
+// environment variables to be set.
+func ResolveTargetVolumeHandle(env TestEnv, primaryVolumeHandle, pvName string) string {
+	if env.TargetArrayIP == "" || env.TargetArrayUser == "" || env.TargetArrayPassword == "" || env.TargetArrayGlobalID == "" {
+		Logf("[WARN]", "TARGET_ARRAY_* env vars not set, using primary volume handle for secondary PV")
+		return primaryVolumeHandle
+	}
+
+	parts := strings.Split(primaryVolumeHandle, "/")
+	Expect(len(parts)).To(BeNumerically(">=", 3),
+		"primary volumeHandle must be in format uuid/globalID/protocol, got %q", primaryVolumeHandle)
+	protocol := parts[2]
+
+	cmd := exec.Command("pstcli",
+		"-d", env.TargetArrayIP,
+		"-u", env.TargetArrayUser,
+		"-p", env.TargetArrayPassword,
+		"-ssl", "accept",
+		"volume", "show",
+		"-query", fmt.Sprintf("name==%q", pvName),
+		"-output", "json", "-raw",
+	)
+	out, err := cmd.CombinedOutput()
+	Expect(err).NotTo(HaveOccurred(),
+		"pstcli query for volume %q on target array %s failed: %s", pvName, env.TargetArrayIP, string(out))
+
+	var volumes []map[string]interface{}
+	err = json.Unmarshal(out, &volumes)
+	Expect(err).NotTo(HaveOccurred(), "failed to parse pstcli JSON output: %s", string(out))
+	Expect(volumes).NotTo(BeEmpty(),
+		"no volume named %q found on target array %s", pvName, env.TargetArrayIP)
+
+	targetUUID, ok := volumes[0]["id"].(string)
+	Expect(ok && targetUUID != "").To(BeTrue(),
+		"target volume has no id field in pstcli output: %v", volumes[0])
+
+	targetHandle := fmt.Sprintf("%s/%s/%s", targetUUID, env.TargetArrayGlobalID, protocol)
+	Logf("[INFO]", "Resolved target volume handle: %s (primary was %s)", targetHandle, primaryVolumeHandle)
+	return targetHandle
+}
+
+// CreateSecondaryPVCFromPrimary creates the secondary PVC from the primary for DR failover.
+// It copies the PV spec from the primary cluster, resolves the correct volume handle for the
+// target array (via pstcli when TARGET_ARRAY_* env vars are set), and creates PV/PVC on the
+// secondary cluster.
 // Call this after the primary VR has reached Replicating. Waits mirrorImageReadyDelay for the
-// rbd-mirror daemon to create the mirror image on the secondary cluster before creating PV/PVC.
+// replication to sync before creating PV/PVC.
 // Returns (pvcDR2, pvDR2). The caller must delete the PV on cleanup (after the PVC).
 func CreateSecondaryPVCFromPrimary(ctx context.Context, cPrimary, cSecondary client.Client, pvcPrimary *corev1.PersistentVolumeClaim, namespace, secondaryPVCName string, onPoll func(*corev1.PersistentVolumeClaim)) (*corev1.PersistentVolumeClaim, *corev1.PersistentVolume) {
-	// Wait for rbd-mirror to create the mirror image on the secondary cluster
 	time.Sleep(mirrorImageReadyDelay)
 
-	// Refresh primary PVC to ensure we have VolumeName
 	err := cPrimary.Get(ctx, client.ObjectKey{Namespace: pvcPrimary.Namespace, Name: pvcPrimary.Name}, pvcPrimary)
 	Expect(err).NotTo(HaveOccurred())
 	Expect(pvcPrimary.Spec.VolumeName).NotTo(BeEmpty(), "primary PVC must be bound (have volumeName)")
 
-	// Get the PV from the primary cluster
 	pvPrimary := &corev1.PersistentVolume{}
 	err = cPrimary.Get(ctx, client.ObjectKey{Name: pvcPrimary.Spec.VolumeName}, pvPrimary)
 	Expect(err).NotTo(HaveOccurred())
 	fmt.Printf("[CreateSecondaryPVCFromPrimary] Primary PV CSI.VolumeHandle=%s\n", pvPrimary.Spec.CSI.VolumeHandle)
 
-	// Create PV for secondary: copy spec, remove claimRef, new name
+	env := GetTestEnv()
+	targetHandle := ResolveTargetVolumeHandle(env, pvPrimary.Spec.CSI.VolumeHandle, pvPrimary.Name)
+
 	pvSecondaryName := "pv-" + secondaryPVCName + "-" + string(uuid.NewUUID())[:8]
 	pvSecondary := &corev1.PersistentVolume{
 		ObjectMeta: metav1.ObjectMeta{
@@ -267,7 +327,8 @@ func CreateSecondaryPVCFromPrimary(ctx context.Context, cPrimary, cSecondary cli
 		Spec: *pvPrimary.Spec.DeepCopy(),
 	}
 	pvSecondary.Spec.ClaimRef = nil
-	fmt.Printf("[CreateSecondaryPVCFromPrimary] Secondary PV CSI.VolumeHandle=%s (should point to mirrored image)\n", pvSecondary.Spec.CSI.VolumeHandle)
+	pvSecondary.Spec.CSI.VolumeHandle = targetHandle
+	fmt.Printf("[CreateSecondaryPVCFromPrimary] Secondary PV CSI.VolumeHandle=%s\n", pvSecondary.Spec.CSI.VolumeHandle)
 
 	err = cSecondary.Create(ctx, pvSecondary)
 	Expect(err).NotTo(HaveOccurred())

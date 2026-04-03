@@ -20,6 +20,12 @@
 #   VOLUME_REPLICATION_CLASS - If set, tests will use this pre-existing VolumeReplicationClass
 #                          instead of creating one per test. The VRC will not be deleted during
 #                          cleanup. Must exist on the cluster before running tests.
+#   TARGET_ARRAY_IP         - IP/hostname of the target storage array (e.g. PowerStore).
+#   TARGET_ARRAY_USER       - Username for the target array.
+#   TARGET_ARRAY_PASSWORD   - Password for the target array.
+#   TARGET_ARRAY_GLOBAL_ID  - Global ID of the target array (used in CSI volume handles).
+#                          When all four TARGET_ARRAY_* vars are set, the test uses pstcli to
+#                          resolve the correct secondary volume UUID on the target array.
 #   REPLICATION_POLL_TIMEOUT - Seconds to wait for Replicating=True (default 300). Increase if
 #                          journal mode or second VR times out.
 #   REPLICATION_TEST_TIMEOUT - Go test timeout for entire suite (default 30m). Increase if suite
@@ -96,6 +102,8 @@ echo "  REPLICATION_POLL_TIMEOUT=${REPLICATION_POLL_TIMEOUT:-<default 300>}"
 echo "  REPLICATION_SECRET_NAME=${REPLICATION_SECRET_NAME:-<unset, create per-ns secret>}"
 echo "  REPLICATION_SECRET_NAMESPACE=${REPLICATION_SECRET_NAMESPACE:-<unset>}"
 echo "  VOLUME_REPLICATION_CLASS=${VOLUME_REPLICATION_CLASS:-<unset, create per-test VRC>}"
+echo "  TARGET_ARRAY_IP=${TARGET_ARRAY_IP:-<unset>}"
+echo "  TARGET_ARRAY_GLOBAL_ID=${TARGET_ARRAY_GLOBAL_ID:-<unset>}"
 echo "  STORAGE_CLASS=${STORAGE_CLASS:-<auto>}"
 echo "  CSI_PROVISIONER=${CSI_PROVISIONER:-<auto>}"
 echo "  DR1_CONTEXT=${DR1_CONTEXT:-<unset>}"
