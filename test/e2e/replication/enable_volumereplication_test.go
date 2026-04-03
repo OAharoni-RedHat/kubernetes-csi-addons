@@ -266,7 +266,7 @@ var _ = Describe("EnableVolumeReplication", func() {
 			// Test case 2: Create a second VR for the same PVC (same volume) - controller should treat as idempotent / no error
 			vr2Name := "vr-idem-second"
 			By("Creating second VolumeReplication " + vr2Name + " for same PVC")
-			volumeHandle := GetVolumeHandleForPVC(ctx, c, pvc)
+			volumeHandle = GetVolumeHandleForPVC(ctx, c, pvc)
 			vr2 := CreateVolumeReplication(ctx, c, nsName, vr2Name, vrcName, pvc.Name, volumeHandle, replicationv1alpha1.Primary)
 
 			DeferCleanup(func() {
