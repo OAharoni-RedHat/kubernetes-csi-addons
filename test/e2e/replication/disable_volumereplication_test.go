@@ -60,7 +60,8 @@ var _ = Describe("DisableVolumeReplication", func() {
 
 			vrName := "vr-dis-primary"
 			By("Creating VolumeReplication (primary) " + vrName)
-			vr := CreateVolumeReplication(ctx, c, nsName, vrName, vrcName, pvc.Name, replicationv1alpha1.Primary)
+			volumeHandle := GetVolumeHandleForPVC(ctx, c, pvc)
+			vr := CreateVolumeReplication(ctx, c, nsName, vrName, vrcName, pvc.Name, volumeHandle, replicationv1alpha1.Primary)
 
 			DeferCleanup(func() {
 				cleanupCtx := context.Background()
@@ -116,7 +117,8 @@ var _ = Describe("DisableVolumeReplication", func() {
 			By("Getting or creating VolumeReplicationClass on DR1")
 			vrcDR1, vrcDR1Owned := GetOrCreateVolumeReplicationClass(ctx, cDR1, env, vrcName, env.Provisioner, secretName, secretNs, MirroringModeSnapshot)
 			vrcName = vrcDR1.Name
-			vrDR1 := CreateVolumeReplication(ctx, cDR1, nsName, "vr-dr1-primary", vrcName, pvcDR1.Name, replicationv1alpha1.Primary)
+			volumeHandle := GetVolumeHandleForPVC(ctx, cDR1, pvcDR1)
+			vrDR1 := CreateVolumeReplication(ctx, cDR1, nsName, "vr-dr1-primary", vrcName, pvcDR1.Name, volumeHandle, replicationv1alpha1.Primary)
 
 			By("Waiting for primary VR on DR1 to reach Replicating=True")
 			WaitForVolumeReplicationReplicatingOrCompleted(ctx, cDR1, vrDR1, func(v *replicationv1alpha1.VolumeReplication) {
@@ -129,7 +131,8 @@ var _ = Describe("DisableVolumeReplication", func() {
 			})
 			By("Getting or creating VolumeReplicationClass on DR2")
 			vrcDR2, vrcDR2Owned := GetOrCreateVolumeReplicationClass(ctx, cDR2, env, vrcName, env.Provisioner, secretName, secretNs, MirroringModeSnapshot)
-			vrDR2 := CreateVolumeReplication(ctx, cDR2, nsName, "vr-dr2-secondary", vrcName, pvcDR2.Name, replicationv1alpha1.Secondary)
+			volumeHandleDR2 := GetVolumeHandleForPVC(ctx, cDR2, pvcDR2)
+			vrDR2 := CreateVolumeReplication(ctx, cDR2, nsName, "vr-dr2-secondary", vrcName, pvcDR2.Name, volumeHandleDR2, replicationv1alpha1.Secondary)
 
 			DeferCleanup(func() {
 				cleanupCtx := context.Background()
@@ -272,7 +275,8 @@ var _ = Describe("DisableVolumeReplication", func() {
 
 			vrName := "vr-dis-fence"
 			By("Creating VolumeReplication (primary) with peer blocked")
-			vr := CreateVolumeReplication(ctx, c, nsName, vrName, vrcName, pvc.Name, replicationv1alpha1.Primary)
+			volumeHandle := GetVolumeHandleForPVC(ctx, c, pvc)
+			vr := CreateVolumeReplication(ctx, c, nsName, vrName, vrcName, pvc.Name, volumeHandle, replicationv1alpha1.Primary)
 
 			By("Waiting for VR to report error due to blocked peer")
 			WaitForVolumeReplicationErrorWithTimeout(ctx, c, vr, quickErrorTimeout)
@@ -340,7 +344,8 @@ var _ = Describe("DisableVolumeReplication", func() {
 
 			vrName := "vr-dis-fence-force"
 			By("Creating VolumeReplication (primary) with peer blocked")
-			vr := CreateVolumeReplication(ctx, c, nsName, vrName, vrcName, pvc.Name, replicationv1alpha1.Primary)
+			volumeHandle := GetVolumeHandleForPVC(ctx, c, pvc)
+			vr := CreateVolumeReplication(ctx, c, nsName, vrName, vrcName, pvc.Name, volumeHandle, replicationv1alpha1.Primary)
 
 			By("Waiting for VR to report error due to blocked peer")
 			WaitForVolumeReplicationError(ctx, c, vr)
@@ -393,7 +398,8 @@ var _ = Describe("DisableVolumeReplication", func() {
 
 			vrName := "vr-dis-force"
 			By("Creating VolumeReplication (primary)")
-			vr := CreateVolumeReplication(ctx, c, nsName, vrName, vrcName, pvc.Name, replicationv1alpha1.Primary)
+			volumeHandle := GetVolumeHandleForPVC(ctx, c, pvc)
+			vr := CreateVolumeReplication(ctx, c, nsName, vrName, vrcName, pvc.Name, volumeHandle, replicationv1alpha1.Primary)
 
 			By("Waiting for Replicating=True or Completed=True")
 			WaitForVolumeReplicationReplicatingOrCompleted(ctx, c, vr, func(v *replicationv1alpha1.VolumeReplication) {
@@ -448,7 +454,8 @@ var _ = Describe("DisableVolumeReplication", func() {
 			By("Getting or creating VolumeReplicationClass on DR1")
 			vrcDR1, vrcDR1Owned := GetOrCreateVolumeReplicationClass(ctx, cDR1, env, vrcName, env.Provisioner, secretName, secretNs, MirroringModeSnapshot)
 			vrcName = vrcDR1.Name
-			vrDR1 := CreateVolumeReplication(ctx, cDR1, nsName, "vr-dr1-force", vrcName, pvcDR1.Name, replicationv1alpha1.Primary)
+			volumeHandle := GetVolumeHandleForPVC(ctx, cDR1, pvcDR1)
+			vrDR1 := CreateVolumeReplication(ctx, cDR1, nsName, "vr-dr1-force", vrcName, pvcDR1.Name, volumeHandle, replicationv1alpha1.Primary)
 
 			By("Waiting for primary VR on DR1 to reach Replicating=True")
 			WaitForVolumeReplicationReplicatingOrCompleted(ctx, cDR1, vrDR1, func(v *replicationv1alpha1.VolumeReplication) {
@@ -461,7 +468,8 @@ var _ = Describe("DisableVolumeReplication", func() {
 			})
 			By("Getting or creating VolumeReplicationClass on DR2")
 			vrcDR2, vrcDR2Owned := GetOrCreateVolumeReplicationClass(ctx, cDR2, env, vrcName, env.Provisioner, secretName, secretNs, MirroringModeSnapshot)
-			vrDR2 := CreateVolumeReplication(ctx, cDR2, nsName, "vr-dr2-force", vrcName, pvcDR2.Name, replicationv1alpha1.Secondary)
+			volumeHandleDR2 := GetVolumeHandleForPVC(ctx, cDR2, pvcDR2)
+			vrDR2 := CreateVolumeReplication(ctx, cDR2, nsName, "vr-dr2-force", vrcName, pvcDR2.Name, volumeHandleDR2, replicationv1alpha1.Secondary)
 
 			By("Waiting for secondary VR on DR2 to reach Replicating or Completed")
 			WaitForVolumeReplicationReplicatingOrCompleted(ctx, cDR2, vrDR2, func(v *replicationv1alpha1.VolumeReplication) {

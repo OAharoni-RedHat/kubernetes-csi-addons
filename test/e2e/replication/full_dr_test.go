@@ -61,7 +61,8 @@ var _ = Describe("Full DR (two clusters)", func() {
 			vrc, vrcOwned := GetOrCreateVolumeReplicationClass(ctx, cDR1, env, vrcName, env.Provisioner, secretName, secretNs, MirroringModeSnapshot)
 			vrcName = vrc.Name
 			vrName := "vr-dr1"
-			vr := CreateVolumeReplication(ctx, cDR1, nsName, vrName, vrcName, pvc.Name, replicationv1alpha1.Primary)
+			volumeHandle := GetVolumeHandleForPVC(ctx, cDR1, pvc)
+			vr := CreateVolumeReplication(ctx, cDR1, nsName, vrName, vrcName, pvc.Name, volumeHandle, replicationv1alpha1.Primary)
 
 			DeferCleanup(func() {
 				cleanupCtx := context.Background()

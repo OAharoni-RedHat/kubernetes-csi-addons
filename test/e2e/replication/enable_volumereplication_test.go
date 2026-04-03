@@ -60,7 +60,8 @@ var _ = Describe("EnableVolumeReplication", func() {
 
 			vrName := "vr-snapshot"
 			By("Creating VolumeReplication " + vrName)
-			vr := CreateVolumeReplication(ctx, c, nsName, vrName, vrcName, pvc.Name, replicationv1alpha1.Primary)
+			volumeHandle := GetVolumeHandleForPVC(ctx, c, pvc)
+			vr := CreateVolumeReplication(ctx, c, nsName, vrName, vrcName, pvc.Name, volumeHandle, replicationv1alpha1.Primary)
 
 			DeferCleanup(func() {
 				cleanupCtx := context.Background()
@@ -108,7 +109,8 @@ var _ = Describe("EnableVolumeReplication", func() {
 
 			vrName := "vr-journal"
 			By("Creating VolumeReplication " + vrName)
-			vr := CreateVolumeReplication(ctx, c, nsName, vrName, vrcName, pvc.Name, replicationv1alpha1.Primary)
+			volumeHandle := GetVolumeHandleForPVC(ctx, c, pvc)
+			vr := CreateVolumeReplication(ctx, c, nsName, vrName, vrcName, pvc.Name, volumeHandle, replicationv1alpha1.Primary)
 
 			DeferCleanup(func() {
 				cleanupCtx := context.Background()
@@ -177,7 +179,8 @@ var _ = Describe("EnableVolumeReplication", func() {
 
 			vrName := "vr-fence"
 			By("Creating VolumeReplication " + vrName + " while node is fenced (EnableVolumeReplication should fail)")
-			vr := CreateVolumeReplication(ctx, c, nsName, vrName, vrcName, pvc.Name, replicationv1alpha1.Primary)
+			volumeHandle := GetVolumeHandleForPVC(ctx, c, pvc)
+			vr := CreateVolumeReplication(ctx, c, nsName, vrName, vrcName, pvc.Name, volumeHandle, replicationv1alpha1.Primary)
 
 			DeferCleanup(func() {
 				cleanupCtx := context.Background()
@@ -242,7 +245,8 @@ var _ = Describe("EnableVolumeReplication", func() {
 
 			vrName := "vr-idem"
 			By("Creating first VolumeReplication " + vrName)
-			vr := CreateVolumeReplication(ctx, c, nsName, vrName, vrcName, pvc.Name, replicationv1alpha1.Primary)
+			volumeHandle := GetVolumeHandleForPVC(ctx, c, pvc)
+			vr := CreateVolumeReplication(ctx, c, nsName, vrName, vrcName, pvc.Name, volumeHandle, replicationv1alpha1.Primary)
 
 			By("Waiting for first VR Replicating=True or Completed=True")
 			WaitForVolumeReplicationReplicatingOrCompleted(ctx, c, vr, func(v *replicationv1alpha1.VolumeReplication) {
@@ -262,7 +266,8 @@ var _ = Describe("EnableVolumeReplication", func() {
 			// Test case 2: Create a second VR for the same PVC (same volume) - controller should treat as idempotent / no error
 			vr2Name := "vr-idem-second"
 			By("Creating second VolumeReplication " + vr2Name + " for same PVC")
-			vr2 := CreateVolumeReplication(ctx, c, nsName, vr2Name, vrcName, pvc.Name, replicationv1alpha1.Primary)
+			volumeHandle := GetVolumeHandleForPVC(ctx, c, pvc)
+			vr2 := CreateVolumeReplication(ctx, c, nsName, vr2Name, vrcName, pvc.Name, volumeHandle, replicationv1alpha1.Primary)
 
 			DeferCleanup(func() {
 				cleanupCtx := context.Background()
@@ -315,7 +320,8 @@ var _ = Describe("EnableVolumeReplication", func() {
 
 			vrName := "vr-invalid-interval"
 			By("Creating VolumeReplication " + vrName)
-			vr := CreateVolumeReplication(ctx, c, nsName, vrName, vrcName, pvc.Name, replicationv1alpha1.Primary)
+			volumeHandle := GetVolumeHandleForPVC(ctx, c, pvc)
+			vr := CreateVolumeReplication(ctx, c, nsName, vrName, vrcName, pvc.Name, volumeHandle, replicationv1alpha1.Primary)
 
 			DeferCleanup(func() {
 				cleanupCtx := context.Background()
@@ -358,7 +364,8 @@ var _ = Describe("EnableVolumeReplication", func() {
 
 			vrName := "vr-bad-secret"
 			By("Creating VolumeReplication " + vrName)
-			vr := CreateVolumeReplication(ctx, c, nsName, vrName, vrcName, pvc.Name, replicationv1alpha1.Primary)
+			volumeHandle := GetVolumeHandleForPVC(ctx, c, pvc)
+			vr := CreateVolumeReplication(ctx, c, nsName, vrName, vrcName, pvc.Name, volumeHandle, replicationv1alpha1.Primary)
 
 			DeferCleanup(func() {
 				cleanupCtx := context.Background()
@@ -400,7 +407,8 @@ var _ = Describe("EnableVolumeReplication", func() {
 
 			vrName := "vr-invalid-mode"
 			By("Creating VolumeReplication " + vrName)
-			vr := CreateVolumeReplication(ctx, c, nsName, vrName, vrcName, pvc.Name, replicationv1alpha1.Primary)
+			volumeHandle := GetVolumeHandleForPVC(ctx, c, pvc)
+			vr := CreateVolumeReplication(ctx, c, nsName, vrName, vrcName, pvc.Name, volumeHandle, replicationv1alpha1.Primary)
 
 			DeferCleanup(func() {
 				cleanupCtx := context.Background()
@@ -444,7 +452,8 @@ var _ = Describe("EnableVolumeReplication", func() {
 
 			vrName := "vr-future-start"
 			By("Creating VolumeReplication " + vrName)
-			vr := CreateVolumeReplication(ctx, c, nsName, vrName, vrcName, pvc.Name, replicationv1alpha1.Primary)
+			volumeHandle := GetVolumeHandleForPVC(ctx, c, pvc)
+			vr := CreateVolumeReplication(ctx, c, nsName, vrName, vrcName, pvc.Name, volumeHandle, replicationv1alpha1.Primary)
 
 			DeferCleanup(func() {
 				cleanupCtx := context.Background()
@@ -492,7 +501,8 @@ var _ = Describe("EnableVolumeReplication", func() {
 
 			vrName := "vr-invalid-time"
 			By("Creating VolumeReplication " + vrName)
-			vr := CreateVolumeReplication(ctx, c, nsName, vrName, vrcName, pvc.Name, replicationv1alpha1.Primary)
+			volumeHandle := GetVolumeHandleForPVC(ctx, c, pvc)
+			vr := CreateVolumeReplication(ctx, c, nsName, vrName, vrcName, pvc.Name, volumeHandle, replicationv1alpha1.Primary)
 
 			DeferCleanup(func() {
 				cleanupCtx := context.Background()

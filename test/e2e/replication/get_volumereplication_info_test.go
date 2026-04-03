@@ -52,7 +52,7 @@ var _ = Describe("GetVolumeReplicationInfo", func() {
 			// VR with dataSource pointing to a PVC that does not exist
 			vrName := "vr-nonexist"
 			By("Creating VolumeReplication with non-existent PVC")
-			vr := CreateVolumeReplication(ctx, c, nsName, vrName, vrcName, "pvc-does-not-exist", replicationv1alpha1.Primary)
+			vr := CreateVolumeReplication(ctx, c, nsName, vrName, vrcName, "pvc-does-not-exist", "", replicationv1alpha1.Primary)
 
 			DeferCleanup(func() {
 				cleanupCtx := context.Background()

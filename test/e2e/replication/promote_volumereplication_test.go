@@ -64,7 +64,8 @@ var _ = Describe("PromoteVolumeReplication", func() {
 			By("Getting or creating VolumeReplicationClass on DR1")
 			vrcDR1, vrcDR1Owned := GetOrCreateVolumeReplicationClass(ctx, cDR1, env, vrcName, env.Provisioner, secretName, secretNs, MirroringModeSnapshot)
 			vrcName = vrcDR1.Name
-			vrDR1 := CreateVolumeReplication(ctx, cDR1, nsName, "vr-dr1-prom", vrcName, pvcDR1.Name, replicationv1alpha1.Primary)
+			volumeHandle := GetVolumeHandleForPVC(ctx, cDR1, pvcDR1)
+			vrDR1 := CreateVolumeReplication(ctx, cDR1, nsName, "vr-dr1-prom", vrcName, pvcDR1.Name, volumeHandle, replicationv1alpha1.Primary)
 
 			By("Waiting for primary VR on DR1 to reach Replicating=True")
 			WaitForVolumeReplicationReplicatingOrCompleted(ctx, cDR1, vrDR1, func(v *replicationv1alpha1.VolumeReplication) {
@@ -78,7 +79,8 @@ var _ = Describe("PromoteVolumeReplication", func() {
 			By("Getting or creating VolumeReplicationClass on DR2")
 			vrcDR2, vrcDR2Owned := GetOrCreateVolumeReplicationClass(ctx, cDR2, env, vrcName, env.Provisioner, secretName, secretNs, MirroringModeSnapshot)
 			fmt.Fprintf(GinkgoWriter, "  [DEBUG] Creating VR with replicationState constant value=%v (should be 'secondary')\n", replicationv1alpha1.Secondary)
-			vrDR2 := CreateVolumeReplication(ctx, cDR2, nsName, "vr-dr2-prom", vrcName, pvcDR2.Name, replicationv1alpha1.Secondary)
+			volumeHandleDR2 := GetVolumeHandleForPVC(ctx, cDR2, pvcDR2)
+			vrDR2 := CreateVolumeReplication(ctx, cDR2, nsName, "vr-dr2-prom", vrcName, pvcDR2.Name, volumeHandleDR2, replicationv1alpha1.Secondary)
 			fmt.Fprintf(GinkgoWriter, "  [DR2][VR] AFTER CREATION Spec.ReplicationState=%v (type=%T)\n", vrDR2.Spec.ReplicationState, vrDR2.Spec.ReplicationState)
 
 			By("Waiting for secondary VR on DR2 to reach Secondary state and stable")
@@ -161,7 +163,8 @@ var _ = Describe("PromoteVolumeReplication", func() {
 
 			vrName := "vr-prom-idem"
 			By("Creating VolumeReplication (already primary)")
-			vr := CreateVolumeReplication(ctx, c, nsName, vrName, vrcName, pvc.Name, replicationv1alpha1.Primary)
+			volumeHandle := GetVolumeHandleForPVC(ctx, c, pvc)
+			vr := CreateVolumeReplication(ctx, c, nsName, vrName, vrcName, pvc.Name, volumeHandle, replicationv1alpha1.Primary)
 
 			By("Waiting for Replicating=True or Completed=True")
 			WaitForVolumeReplicationReplicatingOrCompleted(ctx, c, vr, func(v *replicationv1alpha1.VolumeReplication) {
@@ -226,7 +229,8 @@ var _ = Describe("PromoteVolumeReplication", func() {
 			By("Getting or creating VolumeReplicationClass on DR1")
 			vrcDR1, vrcDR1Owned := GetOrCreateVolumeReplicationClass(ctx, cDR1, env, vrcName, env.Provisioner, secretName, secretNs, MirroringModeSnapshot)
 			vrcName = vrcDR1.Name
-			vrDR1 := CreateVolumeReplication(ctx, cDR1, nsName, "vr-dr1-prom-io", vrcName, pvcDR1.Name, replicationv1alpha1.Primary)
+			volumeHandle := GetVolumeHandleForPVC(ctx, cDR1, pvcDR1)
+			vrDR1 := CreateVolumeReplication(ctx, cDR1, nsName, "vr-dr1-prom-io", vrcName, pvcDR1.Name, volumeHandle, replicationv1alpha1.Primary)
 
 			By("Waiting for primary VR on DR1 to reach Replicating=True")
 			WaitForVolumeReplicationReplicatingOrCompleted(ctx, cDR1, vrDR1, func(v *replicationv1alpha1.VolumeReplication) {
@@ -239,7 +243,8 @@ var _ = Describe("PromoteVolumeReplication", func() {
 			})
 			By("Getting or creating VolumeReplicationClass on DR2")
 			vrcDR2, vrcDR2Owned := GetOrCreateVolumeReplicationClass(ctx, cDR2, env, vrcName, env.Provisioner, secretName, secretNs, MirroringModeSnapshot)
-			vrDR2 := CreateVolumeReplication(ctx, cDR2, nsName, "vr-dr2-prom-io", vrcName, pvcDR2.Name, replicationv1alpha1.Secondary)
+			volumeHandleDR2 := GetVolumeHandleForPVC(ctx, cDR2, pvcDR2)
+			vrDR2 := CreateVolumeReplication(ctx, cDR2, nsName, "vr-dr2-prom-io", vrcName, pvcDR2.Name, volumeHandleDR2, replicationv1alpha1.Secondary)
 
 			By("Waiting for secondary VR on DR2 to reach Replicating=True")
 			WaitForVolumeReplicationReplicatingOrCompleted(ctx, cDR2, vrDR2, func(v *replicationv1alpha1.VolumeReplication) {
@@ -310,7 +315,8 @@ var _ = Describe("PromoteVolumeReplication", func() {
 			By("Getting or creating VolumeReplicationClass on DR1")
 			vrcDR1, vrcDR1Owned := GetOrCreateVolumeReplicationClass(ctx, cDR1, env, vrcName, env.Provisioner, secretName, secretNs, MirroringModeSnapshot)
 			vrcName = vrcDR1.Name
-			vrDR1 := CreateVolumeReplication(ctx, cDR1, nsName, "vr-dr1-prom-force", vrcName, pvcDR1.Name, replicationv1alpha1.Primary)
+			volumeHandle := GetVolumeHandleForPVC(ctx, cDR1, pvcDR1)
+			vrDR1 := CreateVolumeReplication(ctx, cDR1, nsName, "vr-dr1-prom-force", vrcName, pvcDR1.Name, volumeHandle, replicationv1alpha1.Primary)
 
 			By("Waiting for primary VR on DR1 to reach Replicating=True")
 			WaitForVolumeReplicationReplicatingOrCompleted(ctx, cDR1, vrDR1, func(v *replicationv1alpha1.VolumeReplication) {
@@ -323,7 +329,8 @@ var _ = Describe("PromoteVolumeReplication", func() {
 			})
 			By("Getting or creating VolumeReplicationClass on DR2")
 			vrcDR2, vrcDR2Owned := GetOrCreateVolumeReplicationClass(ctx, cDR2, env, vrcName, env.Provisioner, secretName, secretNs, MirroringModeSnapshot)
-			vrDR2 := CreateVolumeReplication(ctx, cDR2, nsName, "vr-dr2-prom-force", vrcName, pvcDR2.Name, replicationv1alpha1.Secondary)
+			volumeHandleDR2 := GetVolumeHandleForPVC(ctx, cDR2, pvcDR2)
+			vrDR2 := CreateVolumeReplication(ctx, cDR2, nsName, "vr-dr2-prom-force", vrcName, pvcDR2.Name, volumeHandleDR2, replicationv1alpha1.Secondary)
 
 			By("Waiting for secondary VR on DR2 to reach Replicating=True")
 			WaitForVolumeReplicationReplicatingOrCompleted(ctx, cDR2, vrDR2, func(v *replicationv1alpha1.VolumeReplication) {
@@ -398,7 +405,8 @@ var _ = Describe("PromoteVolumeReplication", func() {
 			By("Getting or creating VolumeReplicationClass on DR1")
 			vrcDR1, vrcDR1Owned := GetOrCreateVolumeReplicationClass(ctx, cDR1, env, vrcName, env.Provisioner, secretName, secretNs, MirroringModeSnapshot)
 			vrcName = vrcDR1.Name
-			vrDR1 := CreateVolumeReplication(ctx, cDR1, nsName, "vr-dr1-prom-003", vrcName, pvcDR1.Name, replicationv1alpha1.Primary)
+			volumeHandle := GetVolumeHandleForPVC(ctx, cDR1, pvcDR1)
+			vrDR1 := CreateVolumeReplication(ctx, cDR1, nsName, "vr-dr1-prom-003", vrcName, pvcDR1.Name, volumeHandle, replicationv1alpha1.Primary)
 
 			By("Waiting for primary VR on DR1 to reach Replicating=True")
 			WaitForVolumeReplicationReplicatingOrCompleted(ctx, cDR1, vrDR1, func(v *replicationv1alpha1.VolumeReplication) {
@@ -411,7 +419,8 @@ var _ = Describe("PromoteVolumeReplication", func() {
 			})
 			By("Getting or creating VolumeReplicationClass on DR2")
 			vrcDR2, vrcDR2Owned := GetOrCreateVolumeReplicationClass(ctx, cDR2, env, vrcName, env.Provisioner, secretName, secretNs, MirroringModeSnapshot)
-			vrDR2 := CreateVolumeReplication(ctx, cDR2, nsName, "vr-dr2-prom-003", vrcName, pvcDR2.Name, replicationv1alpha1.Secondary)
+			volumeHandleDR2 := GetVolumeHandleForPVC(ctx, cDR2, pvcDR2)
+			vrDR2 := CreateVolumeReplication(ctx, cDR2, nsName, "vr-dr2-prom-003", vrcName, pvcDR2.Name, volumeHandleDR2, replicationv1alpha1.Secondary)
 
 			By("Waiting for secondary VR on DR2 to reach Replicating=True")
 			WaitForVolumeReplicationReplicatingOrCompleted(ctx, cDR2, vrDR2, func(v *replicationv1alpha1.VolumeReplication) {
@@ -547,7 +556,8 @@ var _ = Describe("PromoteVolumeReplication", func() {
 			By("Getting or creating VolumeReplicationClass on DR1")
 			vrcDR1, vrcDR1Owned := GetOrCreateVolumeReplicationClass(ctx, cDR1, env, vrcName, env.Provisioner, secretName, secretNs, MirroringModeSnapshot)
 			vrcName = vrcDR1.Name
-			vrDR1 := CreateVolumeReplication(ctx, cDR1, nsName, "vr-dr1-prom-004", vrcName, pvcDR1.Name, replicationv1alpha1.Primary)
+			volumeHandle := GetVolumeHandleForPVC(ctx, cDR1, pvcDR1)
+			vrDR1 := CreateVolumeReplication(ctx, cDR1, nsName, "vr-dr1-prom-004", vrcName, pvcDR1.Name, volumeHandle, replicationv1alpha1.Primary)
 
 			By("Waiting for primary VR on DR1 to reach Replicating=True")
 			WaitForVolumeReplicationReplicatingOrCompleted(ctx, cDR1, vrDR1, func(v *replicationv1alpha1.VolumeReplication) {
@@ -560,7 +570,8 @@ var _ = Describe("PromoteVolumeReplication", func() {
 			})
 			By("Getting or creating VolumeReplicationClass on DR2")
 			vrcDR2, vrcDR2Owned := GetOrCreateVolumeReplicationClass(ctx, cDR2, env, vrcName, env.Provisioner, secretName, secretNs, MirroringModeSnapshot)
-			vrDR2 := CreateVolumeReplication(ctx, cDR2, nsName, "vr-dr2-prom-004", vrcName, pvcDR2.Name, replicationv1alpha1.Secondary)
+			volumeHandleDR2 := GetVolumeHandleForPVC(ctx, cDR2, pvcDR2)
+			vrDR2 := CreateVolumeReplication(ctx, cDR2, nsName, "vr-dr2-prom-004", vrcName, pvcDR2.Name, volumeHandleDR2, replicationv1alpha1.Secondary)
 
 			By("Waiting for secondary VR on DR2 to reach Replicating=True")
 			WaitForVolumeReplicationReplicatingOrCompleted(ctx, cDR2, vrDR2, func(v *replicationv1alpha1.VolumeReplication) {

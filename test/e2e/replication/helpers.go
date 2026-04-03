@@ -402,13 +402,25 @@ func MaybeDeleteVolumeReplicationClassWithCleanup(ctx context.Context, c client.
 	DeleteVolumeReplicationClassWithCleanup(ctx, c, vrc)
 }
 
+// GetVolumeHandleForPVC returns the CSI volumeHandle from the PV bound to the given PVC.
+func GetVolumeHandleForPVC(ctx context.Context, c client.Client, pvc *corev1.PersistentVolumeClaim) string {
+	Expect(pvc.Spec.VolumeName).NotTo(BeEmpty(), "PVC %s/%s must be bound (have volumeName)", pvc.Namespace, pvc.Name)
+	pv := &corev1.PersistentVolume{}
+	err := c.Get(ctx, client.ObjectKey{Name: pvc.Spec.VolumeName}, pv)
+	Expect(err).NotTo(HaveOccurred())
+	Expect(pv.Spec.CSI).NotTo(BeNil(), "PV %s must have CSI spec", pv.Name)
+	return pv.Spec.CSI.VolumeHandle
+}
+
 // CreateVolumeReplication creates a VolumeReplication for the given PVC.
-func CreateVolumeReplication(ctx context.Context, c client.Client, namespace, name, vrcName, pvcName string, state replicationv1alpha1.ReplicationState) *replicationv1alpha1.VolumeReplication {
+// replicationHandle is set as spec.replicationHandle (typically the CSI volumeHandle from the bound PV).
+func CreateVolumeReplication(ctx context.Context, c client.Client, namespace, name, vrcName, pvcName, replicationHandle string, state replicationv1alpha1.ReplicationState) *replicationv1alpha1.VolumeReplication {
 	vr := &replicationv1alpha1.VolumeReplication{
 		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
 		Spec: replicationv1alpha1.VolumeReplicationSpec{
 			VolumeReplicationClass: vrcName,
 			ReplicationState:       state,
+			ReplicationHandle:      replicationHandle,
 			DataSource: corev1.TypedLocalObjectReference{
 				APIGroup: nil,
 				Kind:     pvcDataSourceKind,
